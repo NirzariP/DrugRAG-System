@@ -1,0 +1,31 @@
+fastapi==0.129.0
+uvicorn[standard]==0.40.0
+pydantic==2.12.5
+pydantic-settings==2.12.0
+python-dotenv==1.2.1
+
+# Langchain and Langsmith packages
+langchain>=0.3.14
+langchain-core>=0.3.29
+langchain-google-genai>=2.0.7
+langsmith>=0.2.10
+langgraph-checkpoint-postgres==3.0.4
+psycopg[binary]==3.3.3
+psycopg-pool==3.2.6
+
+
+# Utilities
+python-dotenv>=1.0.1
+httpx>=0.28.0
+
+#test libraries
+pytest==9.0.2
+
+# sql libraries
+psycopg2-binary==2.9.11
+
+# Testing libraries
+anyio>=4.12.1
+httpx>=0.28.1
+pytest>=9.0.2
+pytest-asyncio>=1.3.0
