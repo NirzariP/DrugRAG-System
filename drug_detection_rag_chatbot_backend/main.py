@@ -18,6 +18,7 @@ from config import get_settings
 from routes import api_router, main_router
 from Agents.query_analyser import QueryAnalyserAgent
 
+from prometheus_client import make_asgi_app
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -83,6 +84,9 @@ async def langsmith_trace_middleware(request: Request, call_next):
 app.include_router(api_router)
 app.include_router(main_router)
 
+# Mounting the metrics endpoint
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
 
 if __name__ == "__main__":
     import uvicorn

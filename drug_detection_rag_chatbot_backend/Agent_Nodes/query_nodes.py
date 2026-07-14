@@ -7,6 +7,8 @@ from Agents_State.Query_state import AnalyserState
 from config.llm import get_llm
 from Agent_Prompts.analyser_prompt import ANALYSER_PROMPT, RETRY_PROMPT_TEMPLATE
 
+from monitoring.metrics import retry_analyse_total, interrupt_loop_total, interrupt_resume_duration_seconds, gemini_call_duration_seconds, query_type_total
+import time
 
 
 def _extract_text(response) -> str:
@@ -44,6 +46,7 @@ def parse_response(state: AnalyserState) -> AnalyserState:
         parsed = json.loads(raw)
         return {**state, "parsed": parsed, "status": "ok", "error": ""}
     except json.JSONDecodeError as e:
+        retry_analyse_total.labels(reason="invalid_json").inc()     # Garfana
         return {
             **state,
             "parsed": None,
@@ -158,6 +161,7 @@ def ask_user(state: AnalyserState) -> AnalyserState:
             f'Also, {state["clarification_message"]}\n'
             f'Please confirm the spelling ("yes" to accept corrections) and provide the missing information.'
         )
+        interrupt_loop_total.labels(loop_type="both").inc()     # Garfana
         user_reply = interrupt({
             "type": "both",
             "message": message,
@@ -166,6 +170,7 @@ def ask_user(state: AnalyserState) -> AnalyserState:
 
     # Clarification only
     elif has_clarification:
+        interrupt_loop_total.labels(loop_type="clarification").inc()        # Garfana
         user_reply = interrupt({
             "type": "clarification",
             "message": state["clarification_message"],
@@ -182,6 +187,7 @@ def ask_user(state: AnalyserState) -> AnalyserState:
             f"I noticed some possible spelling issues: {suggestions} "
             f'Reply "yes" to confirm, or provide the correct name(s).'
         )
+        interrupt_loop_total.labels(loop_type="spelling").inc()     # Garfana
         user_reply = interrupt({
             "type": "spelling",
             "message": message,
@@ -200,6 +206,13 @@ def apply_confirmation(state: AnalyserState) -> AnalyserState:
     has_clarification = state["clarification_needed"]
 
     
+    # Garfana
+    if "interrupt_started_at" in state:
+        elapsed = time.time() - state["interrupt_started_at"]
+        loop_type = "both" if (has_spelling and has_clarification) else ("clarification" if has_clarification else "spelling")
+        interrupt_resume_duration_seconds.labels(loop_type=loop_type).observe(elapsed)
+
+
     if has_spelling and has_clarification:
         new_query = state["query"]
         if user_reply_lower == "yes" or user_reply_lower.startswith("yes"):
@@ -329,6 +342,11 @@ def build_agent_response(state: AnalyserState) -> AnalyserState:
         for pair in p.get("interactions", [])
     ]
 
+    # Garfana
+    for pair in interactions:
+        if pair.type:
+            query_type_total.labels(interaction_type=pair.type).inc()
+
     response = QueryResponse(
         interactions=interactions,
         clarification_needed=p.get("clarification_needed", False),
@@ -401,10 +419,14 @@ async def format_output(state: AnalyserState) -> AnalyserState:
     chain = prompt | llm | StrOutputParser()
 
 
+    start = time.time()     # Garfana
+
     answer = await chain.ainvoke({
         "interaction_data": state["sql_results"],
         "user_query": state["query"]
     })
+
+    gemini_call_duration_seconds.observe(time.time() - start)       # Garfana
 
     return {**state, "final_answer": answer, "status": "ok"}
 
