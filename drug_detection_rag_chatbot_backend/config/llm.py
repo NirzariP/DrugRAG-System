@@ -7,7 +7,7 @@ from config.settings import Settings
 load_dotenv()
 settings = Settings()
 
-def get_llm(model: str = "gemini-2.5-flash") -> ChatGoogleGenerativeAI:
+def get_llm(model: str = "gemini-3.5-flash") -> ChatGoogleGenerativeAI:
     """
     Returns a configured Gemini LLM instance.
     temperature=0 → deterministic output (no creativity needed for query analysis).

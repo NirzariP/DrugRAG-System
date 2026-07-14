@@ -10,7 +10,7 @@ settings = get_settings()
 
 async def Test_agent():
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
+        model=settings.GEMINI_MODEL,
         google_api_key=settings.GEMINI_API_KEY,
         temperature=0.2,
         )

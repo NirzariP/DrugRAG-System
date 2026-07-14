@@ -23,7 +23,7 @@ class QueryAnalyserAgent:
         self._graph = graph
 
     @classmethod
-    async def create(cls, model: str = "gemini-2.5-flash"):
+    async def create(cls, model: str = "gemini3-flash"):
         graph = await build_graph() # pyright: ignore[reportGeneralTypeIssues]
         return cls(graph)
 

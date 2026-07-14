@@ -41,7 +41,7 @@ ANALYSER_PROMPT = PromptTemplate(
                     )
 
 class QueryAnalyser:
-    def __init__(self, api_key: str, model: str = "gemini-2.5-flash"):
+    def __init__(self, api_key: str, model: str = "gemini-3.5-flash"):
         self.llm = ChatGoogleGenerativeAI(
             model = model, 
             google_api_key = api_key,
