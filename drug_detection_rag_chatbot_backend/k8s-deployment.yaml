@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: drugrag-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: drugrag-api
+  template:
+    metadata:
+      labels:
+        app: drugrag-api
+    spec:
+      containers:
+        - name: drugrag-api
+          image: drugrag-api:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: drugrag-secrets

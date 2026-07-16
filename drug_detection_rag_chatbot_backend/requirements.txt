@@ -32,3 +32,6 @@ pytest-asyncio>=1.3.0
 
 # Monitoring
 prometheus-client==0.25.0
+
+# Sentence Transformer
+fastembed==0.4.2

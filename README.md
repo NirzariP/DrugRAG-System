@@ -1,22 +1,22 @@
-# APDP — DrugRAG System
+# DrugRAG System
 
-A FastAPI backend that analyses drug-food, drug-herb, and drug-drug interactions through natural language queries. The system uses a LangGraph-powered multi-agent pipeline to extract interaction entities, retrieve structured data from PostgreSQL, and return clinically formatted responses with a Next.js chat interface for querying drug-food, drug-herb, and drug-drug interactions. Users ask natural language questions and receive clinically formatted responses powered by the APDP backend pipeline. 
+A FastAPI backend that analyses drug-food, drug-herb, and drug-drug interactions through natural language queries. The system uses a LangGraph-powered multi-agent pipeline to extract interaction entities, retrieve structured data from PostgreSQL, and return clinically formatted responses with a Next.js chat interface for querying drug-food, drug-herb, and drug-drug interactions. Users ask natural language questions and receive clinically formatted responses powered by the backend pipeline. 
 
 
-## Tech Stack
+### Tech Stack
 
 - **Framework:** FastAPI with async architecture, Next.js 14+ (App Router)
 - **Agent Pipeline:** LangGraph with Human-in-the-Loop (HITL) via `interrupt()`
 - **LLMs:** Google Gemini 2.5 Flash (query analysis and response formatting)
 - **Database:** PostgreSQL via Supabase (interaction data + checkpointing)
 - **Observability:** LangSmith for tracing
-- **Deployment:** Docker → GitHub Actions → Docker Hub → Render
+- **Backend Deployment (planned):** Docker → GitHub Actions → Docker Hub → Render
+- **Frontend Deployment (planned):** Vercel
 - **Language:** TypeScript
 - **Styling:** Tailwind CSS
-- **Deployment:** Vercel
 
 
-## Features
+### Features
 - Natural language querying for drug-drug, drug-food, and drug-herb interactions
 - Agentic AI pipeline built using LangGraph
 - Human-in-the-Loop (HITL) workflow for spelling correction and query confirmation
@@ -26,7 +26,7 @@ A FastAPI backend that analyses drug-food, drug-herb, and drug-drug interactions
 - End-to-end deployment with Docker and CI/CD
 
 
-## System Architecture
+### System Architecture
 - Client Layer (Next.js) – Chat-based interface for user interaction.
 - Backend Layer (FastAPI) – API orchestration and agent execution.
 - Agentic AI Layer (LangGraph) – Query analysis, retrieval, and response formatting agents.
@@ -39,24 +39,102 @@ Retrieval Agent fetches relevant interaction data from PostgreSQL.
 Response Formatter Agent generates a clinically structured response.
 Final response is displayed in the chat interface.
 
+#### User Interface (Chatbot)
+![Chat Interface](./images/ui.png)
 
-## Repository Structure
+
+### Repository Structure
 ```
 ├── drug_detection_rag_chatbot_frontend/      # React application
 ├── drug_detection_rag_chatbot_backend/       # FastAPI backend and LangGraph agents
-├── README.md
-└── requirements.txt
+└── README.md
 ```
 
 
 
 
 
-## Monitoring & Observability (Prometheus + Grafana)
+### Setup
+
+1. **Clone the repository**
+
+   ```bash
+   git clone https://github.com/samsaw777/apdp-project-backend.git
+   ```
+
+2. **Copy the environment file and fill in your values**
+
+   ```bash
+   cp .env.examples .env
+   ```
+
+3. **Run backend with Docker Compose**
+
+   ```bash
+   cd drug_detection_rag_chatbot_backend
+   docker compose up --build
+   ```
+
+   The API will be available at `http://localhost:8000`.
+
+4. **Run backend without Docker**
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate        # Windows: .venv\Scripts\activate
+   pip install -r requirements.txt
+   uvicorn main:app --reload --host 0.0.0.0 --port 8000
+   ```
+
+5. **Run frontend**
+
+   ```bash
+   cd drug_detection_rag_chatbot_frontend
+   npm install
+   npm run dev
+   ```
+
+    The frontend will be available at `http://localhost:3000`.
+    
+6. **Run via Kubernetes (Minikube) — optional, for orchestration demo**
+    ```bash
+    minikube start --driver=docker
+    minikube docker-env | Invoke-Expression   # PowerShell; use eval $(minikube docker-env) on bash/zsh
+    docker build -t drugrag-api:latest .
+    kubectl create secret generic drugrag-secrets --from-env-file=.env
+    kubectl apply -f k8s-deployment.yaml
+    kubectl apply -f k8s-service.yaml
+    ```
+    **Check status / access the app:**
+    ```bash
+    kubectl get pods
+    kubectl logs deployment/drugrag-api
+    minikube service drugrag-api-service --url
+    ```
+    
+    **After changing code, rebuild and redeploy:**
+    ```bash
+    minikube docker-env | Invoke-Expression
+    docker build -t drugrag-api:latest .
+    kubectl rollout restart deployment/drugrag-api
+    ```
+
+    **Stop everything:**
+    ```bash
+    minikube stop
+    docker compose down
+    ```
+
+    **Note:** In this setup, only the API runs inside Kubernetes — Prometheus and Grafana remain in Docker Compose.
+
+
+
+
+
+### Monitoring & Observability (Prometheus + Grafana)
 
 To gain visibility into the LangGraph agent pipeline's behavior — retry loops, human-in-the-loop interrupts, and LLM latency — the backend is instrumented with Prometheus metrics, visualized via Grafana.
 
-### What's tracked
+**1. What's tracked**
 
 | Metric | Type | Purpose |
 |---|---|---|
@@ -83,13 +161,13 @@ app.mount("/metrics", metrics_app)
 
 **4. Docker Compose services**
 
-Two services `prometheus` and `garfana` were added to `docker-compose.yml`, alongside the existing `api` service:
+Two services `prometheus` and `grafana` were added to `docker-compose.yml`, alongside the existing `api` service:
 
 
 **5. Prometheus scrape config** `prometheus.yml` was added to the project root
 
 
-### Running it
+#### Running it
 
 ```bash
 docker compose up --build
@@ -101,7 +179,16 @@ docker compose up --build
   - Add Prometheus as a data source: URL `http://prometheus:9090`
   - Dashboard panels are built via Grafana's **Explore** view or the panel editor, using PromQL queries against the metrics listed above (e.g. `histogram_quantile(0.95, rate(gemini_call_duration_seconds_bucket[5m]))` for p95 Gemini latency)
 
-### Notes
+![Grafana dashboard showing Gemini latency, query type distribution, and interrupt loop metrics](./images/grafana-dashboard.png)
+
+#### Notes
 
 - Metrics update in real time as requests flow through the pipeline; Prometheus scrapes automatically every 15s — no manual triggering needed.
 - This setup currently runs locally via Docker Compose for development/observability purposes and has not yet been adapted for the production deployment target.
+
+
+### Monitoring LangSmith traces
+
+1. Sign up / log in at [smith.langchain.com](https://smith.langchain.com)
+2. Open the project matching `LANGSMITH_PROJECT` (`drugrag_tracking`)
+3. Each query sent through the app appears as a trace — expandable into every node the LangGraph pipeline executed, with inputs, outputs, and latency per step
